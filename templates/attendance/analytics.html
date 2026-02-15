@@ -1,0 +1,160 @@
+{% extends 'base.html' %}
+
+{% block title %}Student Analytics - SmartSense{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header">
+                <h3 class="mb-0"><i class="fas fa-chart-bar"></i> Student-wise Attendance Analytics</h3>
+            </div>
+            <div class="card-body">
+                {% if student_stats %}
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>#</th>
+                                    <th>Student Name</th>
+                                    <th>Roll Number</th>
+                                    <th>Department</th>
+                                    <th>Total Days Present</th>
+                                    <th>Late Entries</th>
+                                    <th>Early Exits</th>
+                                    <th>Attendance %</th>
+                                    <th>Performance</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for stat in student_stats %}
+                                <tr>
+                                    <td>{{ forloop.counter }}</td>
+                                    <td><strong>{{ stat.student.name }}</strong></td>
+                                    <td>{{ stat.student.roll_number }}</td>
+                                    <td>{{ stat.student.department }}</td>
+                                    <td>
+                                        <span class="badge bg-info">{{ stat.total_days }} days</span>
+                                    </td>
+                                    <td>
+                                        {% if stat.late_count > 0 %}
+                                            <span class="badge bg-warning text-dark">{{ stat.late_count }}</span>
+                                        {% else %}
+                                            <span class="badge bg-success">0</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        {% if stat.early_exit_count > 0 %}
+                                            <span class="badge bg-danger">{{ stat.early_exit_count }}</span>
+                                        {% else %}
+                                            <span class="badge bg-success">0</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        <div class="d-flex align-items-center gap-2">
+                                            <div class="progress flex-grow-1" style="height: 25px; width: 100px;">
+                                                <div class="progress-bar 
+                                                    {% if stat.attendance_percentage >= 75 %}bg-success
+                                                    {% elif stat.attendance_percentage >= 50 %}bg-warning
+                                                    {% else %}bg-danger{% endif %}" 
+                                                    role="progressbar" 
+                                                    style="width: {{ stat.attendance_percentage }}%" 
+                                                    aria-valuenow="{{ stat.attendance_percentage }}" 
+                                                    aria-valuemin="0" 
+                                                    aria-valuemax="100">
+                                                    {{ stat.attendance_percentage }}%
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </td>
+                                    <td>
+                                        {% if stat.attendance_percentage >= 75 %}
+                                            <span class="badge bg-success">
+                                                <i class="fas fa-star"></i> Excellent
+                                            </span>
+                                        {% elif stat.attendance_percentage >= 50 %}
+                                            <span class="badge bg-warning text-dark">
+                                                <i class="fas fa-exclamation-triangle"></i> Average
+                                            </span>
+                                        {% else %}
+                                            <span class="badge bg-danger">
+                                                <i class="fas fa-times"></i> Poor
+                                            </span>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                {% else %}
+                    <div class="text-center text-muted py-5">
+                        <i class="fas fa-chart-bar fa-4x mb-3"></i>
+                        <h4>No Analytics Data Available</h4>
+                        <p>No students or attendance records found.</p>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row mt-4">
+    <div class="col-md-4">
+        <div class="card text-center">
+            <div class="card-body">
+                <div class="stat-icon text-success mb-2">
+                    <i class="fas fa-trophy"></i>
+                </div>
+                <h5>Top Performers</h5>
+                <p class="text-muted">Students with 75%+ attendance</p>
+                <h2 class="text-success">
+                    {% with top_count=student_stats|length %}
+                        {{ student_stats|dictsort:"attendance_percentage"|slice:"::-1"|slice:":10"|selectattr:"attendance_percentage"|selectattr:"attendance_percentage__gte:75"|list|length }}
+                    {% endwith %}
+                </h2>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-4">
+        <div class="card text-center">
+            <div class="card-body">
+                <div class="stat-icon text-warning mb-2">
+                    <i class="fas fa-clock"></i>
+                </div>
+                <h5>Most Late Arrivals</h5>
+                <p class="text-muted">Students with frequent late entries</p>
+                <h2 class="text-warning">
+                    {{ student_stats|dictsort:"late_count"|slice:"::-1"|first.late_count|default:0 }}
+                </h2>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-4">
+        <div class="card text-center">
+            <div class="card-body">
+                <div class="stat-icon text-info mb-2">
+                    <i class="fas fa-calendar-check"></i>
+                </div>
+                <h5>Average Attendance</h5>
+                <p class="text-muted">Overall attendance percentage</p>
+                <h2 class="text-info">
+                    {% if student_stats %}
+                        {% with total=0 count=0 %}
+                            {% for stat in student_stats %}
+                                {% with total=total|add:stat.attendance_percentage count=count|add:1 %}
+                                {% endwith %}
+                            {% endfor %}
+                            {{ total|floatformat:0 }}%
+                        {% endwith %}
+                    {% else %}
+                        0%
+                    {% endif %}
+                </h2>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

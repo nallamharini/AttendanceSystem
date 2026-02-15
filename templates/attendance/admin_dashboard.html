@@ -1,0 +1,233 @@
+{% extends 'base.html' %}
+
+{% block title %}Admin Dashboard - SmartSense{% endblock %}
+
+{% block extra_css %}
+<style>
+    .stat-card {
+        transition: all 0.3s ease;
+        cursor: pointer;
+    }
+    
+    .stat-card:hover {
+        transform: translateY(-10px);
+    }
+    
+    .chart-container {
+        position: relative;
+        height: 300px;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="text-white text-center mb-4">
+    <h2><i class="fas fa-chart-line"></i> Admin Dashboard</h2>
+    <p>Real-time Attendance Analytics</p>
+</div>
+
+<!-- Statistics Cards -->
+<div class="row g-4 mb-4">
+    <div class="col-md-3">
+        <div class="stat-card">
+            <div class="stat-icon text-primary">
+                <i class="fas fa-users"></i>
+            </div>
+            <p class="stat-value">{{ total_students }}</p>
+            <p class="stat-label">Total Students</p>
+        </div>
+    </div>
+    
+    <div class="col-md-3">
+        <div class="stat-card">
+            <div class="stat-icon text-success">
+                <i class="fas fa-check-circle"></i>
+            </div>
+            <p class="stat-value">{{ present_today }}</p>
+            <p class="stat-label">Present Today</p>
+        </div>
+    </div>
+    
+    <div class="col-md-3">
+        <div class="stat-card">
+            <div class="stat-icon text-danger">
+                <i class="fas fa-times-circle"></i>
+            </div>
+            <p class="stat-value">{{ absent_today }}</p>
+            <p class="stat-label">Absent Today</p>
+        </div>
+    </div>
+    
+    <div class="col-md-3">
+        <div class="stat-card">
+            <div class="stat-icon text-warning">
+                <i class="fas fa-clock"></i>
+            </div>
+            <p class="stat-value">{{ late_arrivals }}</p>
+            <p class="stat-label">Late Arrivals</p>
+        </div>
+    </div>
+</div>
+
+<div class="row g-4">
+    <!-- Recent Attendance -->
+    <div class="col-lg-8">
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="mb-0"><i class="fas fa-clock"></i> Recent Attendance</h5>
+                <a href="{% url 'attendance_records' %}" class="btn btn-sm btn-outline-light">View All</a>
+            </div>
+            <div class="card-body">
+                {% if recent_records %}
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead>
+                                <tr>
+                                    <th>Student</th>
+                                    <th>Roll No</th>
+                                    <th>Date</th>
+                                    <th>Entry Time</th>
+                                    <th>Exit Time</th>
+                                    <th>Status</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for record in recent_records %}
+                                <tr>
+                                    <td>{{ record.student.name }}</td>
+                                    <td>{{ record.student.roll_number }}</td>
+                                    <td>{{ record.date|date:"M d, Y" }}</td>
+                                    <td>
+                                        {% if record.entry_time %}
+                                            {{ record.entry_time|time:"g:i A" }}
+                                        {% else %}
+                                            <span class="text-muted">N/A</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        {% if record.exit_time %}
+                                            {{ record.exit_time|time:"g:i A" }}
+                                        {% else %}
+                                            <span class="text-muted">N/A</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        {% if record.is_late %}
+                                            <span class="badge bg-warning text-dark">Late</span>
+                                        {% elif record.entry_time %}
+                                            <span class="badge bg-success">Present</span>
+                                        {% endif %}
+                                        {% if record.exit_time %}
+                                            <span class="badge bg-info ms-1">Exit</span>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                {% else %}
+                    <div class="text-center text-muted py-5">
+                        <i class="fas fa-inbox fa-3x mb-3"></i>
+                        <p>No attendance records yet</p>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    
+    <!-- Quick Actions -->
+    <div class="col-lg-4">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0"><i class="fas fa-bolt"></i> Quick Actions</h5>
+            </div>
+            <div class="card-body">
+                <div class="d-grid gap-3">
+                    <a href="{% url 'student_register' %}" class="btn btn-primary">
+                        <i class="fas fa-user-plus"></i> Add New Student
+                    </a>
+                    <a href="{% url 'attendance_records' %}" class="btn btn-info">
+                        <i class="fas fa-list"></i> View All Records
+                    </a>
+                    <a href="{% url 'export_csv' %}" class="btn btn-success">
+                        <i class="fas fa-download"></i> Export CSV Report
+                    </a>
+                    <a href="{% url 'student_analytics' %}" class="btn btn-warning">
+                        <i class="fas fa-chart-bar"></i> Student Analytics
+                    </a>
+                </div>
+                
+                <hr class="my-3">
+                
+                <div class="alert alert-info mb-0">
+                    <h6><i class="fas fa-info-circle"></i> Today's Date</h6>
+                    <p class="mb-0"><strong>{{ today|date:"l, F d, Y" }}</strong></p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Weekly Trend -->
+{% if weekly_attendance %}
+<div class="row mt-4">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0"><i class="fas fa-chart-area"></i> Weekly Attendance Trend</h5>
+            </div>
+            <div class="card-body">
+                <canvas id="weeklyChart"></canvas>
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
+{% endblock %}
+
+{% block extra_js %}
+{% if weekly_attendance %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<script>
+    const weeklyData = {{ weekly_attendance|safe }};
+    const labels = weeklyData.map(item => new Date(item.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }));
+    const data = weeklyData.map(item => item.count);
+    
+    const ctx = document.getElementById('weeklyChart').getContext('2d');
+    new Chart(ctx, {
+        type: 'line',
+        data: {
+            labels: labels,
+            datasets: [{
+                label: 'Attendance Count',
+                data: data,
+                borderColor: 'rgb(37, 99, 235)',
+                backgroundColor: 'rgba(37, 99, 235, 0.1)',
+                borderWidth: 3,
+                fill: true,
+                tension: 0.4
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: true,
+            plugins: {
+                legend: {
+                    display: true,
+                    position: 'top'
+                }
+            },
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    ticks: {
+                        stepSize: 1
+                    }
+                }
+            }
+        }
+    });
+</script>
+{% endif %}
+{% endblock %}

@@ -1,0 +1,152 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Login - SmartSense{% endblock %}
+
+{% block content %}
+<div class="container mt-5">
+    <div class="row justify-content-center">
+        <div class="col-md-6">
+            <div class="card shadow-lg border-0">
+                <div class="card-header bg-gradient-primary text-white text-center py-4">
+                    <h3 class="mb-0"><i class="fas fa-user-lock me-2"></i>Login to SmartSense</h3>
+                    <p class="mb-0 small">Smart Campus Security & Attendance System</p>
+                </div>
+                <div class="card-body p-4">
+                    {% if messages %}
+                        {% for message in messages %}
+                            <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
+                                {{ message }}
+                                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                            </div>
+                        {% endfor %}
+                    {% endif %}
+
+                    <!-- Login Type Tabs -->
+                    <ul class="nav nav-pills nav-justified mb-4" id="loginTabs" role="tablist">
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link active" id="student-tab" data-bs-toggle="pill" data-bs-target="#student" type="button" role="tab">
+                                <i class="fas fa-user-graduate"></i> Student
+                            </button>
+                        </li>
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link" id="faculty-tab" data-bs-toggle="pill" data-bs-target="#faculty" type="button" role="tab">
+                                <i class="fas fa-chalkboard-teacher"></i> Faculty
+                            </button>
+                        </li>
+                    </ul>
+
+                    <!-- Tab Content -->
+                    <div class="tab-content" id="loginTabContent">
+                        <!-- Student Login -->
+                        <div class="tab-pane fade show active" id="student" role="tabpanel">
+                            <div class="alert alert-info">
+                                <i class="fas fa-info-circle me-2"></i>Students: Use your <strong>roll number</strong> as username
+                            </div>
+                            <form method="post" action="{% url 'login' %}">
+                                {% csrf_token %}
+                                <input type="hidden" name="user_type" value="student">
+                                <div class="mb-3">
+                                    <label for="student_username" class="form-label">
+                                        <i class="fas fa-id-card me-1"></i>Username (Roll Number)
+                                    </label>
+                                    <input type="text" class="form-control form-control-lg" id="student_username" name="username" required placeholder="Enter your roll number">
+                                </div>
+                                <div class="mb-4">
+                                    <label for="student_password" class="form-label">
+                                        <i class="fas fa-lock me-1"></i>Password
+                                    </label>
+                                    <input type="password" class="form-control form-control-lg" id="student_password" name="password" required placeholder="Enter your password">
+                                </div>
+                                <div class="d-grid">
+                                    <button type="submit" class="btn btn-primary btn-lg">
+                                        <i class="fas fa-sign-in-alt me-2"></i>Login as Student
+                                    </button>
+                                </div>
+                                <div class="text-center mt-3">
+                                    <a href="{% url 'forgot_password' %}" class="text-decoration-none">
+                                        <i class="fas fa-key me-1"></i>Forgot Password?
+                                    </a>
+                                </div>
+                                <div class="text-center mt-3">
+                                    <p class="text-muted">Don't have an account?</p>
+                                    <a href="{% url 'signup' %}" class="btn btn-outline-success">
+                                        <i class="fas fa-user-plus me-2"></i>Register as Student
+                                    </a>
+                                </div>
+                            </form>
+                        </div>
+
+                        <!-- Faculty Login -->
+                        <div class="tab-pane fade" id="faculty" role="tabpanel">
+                            <div class="alert alert-warning">
+                                <i class="fas fa-info-circle me-2"></i>Faculty: Login with your <strong>username</strong> (created during registration)
+                            </div>
+                            <form method="post" action="{% url 'login' %}">
+                                {% csrf_token %}
+                                <input type="hidden" name="user_type" value="faculty">
+                                <div class="mb-3">
+                                    <label for="faculty_username" class="form-label">
+                                        <i class="fas fa-user me-1"></i>Username
+                                    </label>
+                                    <input type="text" class="form-control form-control-lg" id="faculty_username" name="username" required placeholder="Enter your username">
+                                </div>
+                                <div class="mb-4">
+                                    <label for="faculty_password" class="form-label">
+                                        <i class="fas fa-lock me-1"></i>Password
+                                    </label>
+                                    <input type="password" class="form-control form-control-lg" id="faculty_password" name="password" required placeholder="Enter your password">
+                                </div>
+                                <div class="d-grid">
+                                    <button type="submit" class="btn btn-warning btn-lg text-white">
+                                        <i class="fas fa-sign-in-alt me-2"></i>Login as Faculty
+                                    </button>
+                                </div>
+                                <div class="text-center mt-3">
+                                    <a href="{% url 'forgot_password' %}" class="text-decoration-none">
+                                        <i class="fas fa-key me-1"></i>Forgot Password?
+                                    </a>
+                                </div>
+                                <div class="text-center mt-3">
+                                    <p class="text-muted">Don't have an account?</p>
+                                    <a href="{% url 'faculty_signup' %}" class="btn btn-outline-warning">
+                                        <i class="fas fa-user-plus me-2"></i>Register as Faculty
+                                    </a>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+.bg-gradient-primary {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+}
+
+.card {
+    border-radius: 15px;
+    overflow: hidden;
+}
+
+.form-control:focus {
+    border-color: #667eea;
+    box-shadow: 0 0 0 0.2rem rgba(102, 126, 234, 0.25);
+}
+
+.btn-primary {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    border: none;
+}
+
+.btn-primary:hover {
+    background: linear-gradient(135deg, #764ba2 0%, #667eea 100%);
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+    transition: all 0.3s ease;
+}
+</style>
+{% endblock %}

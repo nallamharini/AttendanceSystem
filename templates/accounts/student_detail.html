@@ -1,0 +1,117 @@
+{% extends 'base.html' %}
+
+{% block title %}{{ student.name }} - SmartSense{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12 mb-3">
+        <a href="{% url 'student_list' %}" class="btn btn-outline-light">
+            <i class="fas fa-arrow-left"></i> Back to Students
+        </a>
+    </div>
+    
+    <div class="col-md-4">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0"><i class="fas fa-user"></i> Student Profile</h5>
+            </div>
+            <div class="card-body text-center">
+                <div class="mb-3">
+                    <i class="fas fa-user-circle fa-5x text-primary"></i>
+                </div>
+                <h4>{{ student.name }}</h4>
+                <p class="text-muted">{{ student.roll_number }}</p>
+                
+                <hr>
+                
+                <div class="text-start">
+                    <p><i class="fas fa-envelope text-primary me-2"></i> {{ student.email }}</p>
+                    <p><i class="fas fa-building text-primary me-2"></i> {{ student.department }}</p>
+                    <p><i class="fas fa-phone text-primary me-2"></i> {{ student.phone|default:"Not provided" }}</p>
+                    <p><i class="fas fa-calendar text-primary me-2"></i> Registered: {{ student.created_at|date:"M d, Y" }}</p>
+                </div>
+                
+                <hr>
+                
+                <div class="d-grid gap-2">
+                    {% if student.face_encoding %}
+                        <span class="badge bg-success p-3">
+                            <i class="fas fa-check-circle"></i> Face Data Registered
+                        </span>
+                    {% else %}
+                        <span class="badge bg-warning p-3">
+                            <i class="fas fa-exclamation-triangle"></i> No Face Data
+                        </span>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-8">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0"><i class="fas fa-history"></i> Attendance History</h5>
+            </div>
+            <div class="card-body">
+                {% if attendances %}
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead>
+                                <tr>
+                                    <th>Date</th>
+                                    <th>Entry Time</th>
+                                    <th>Exit Time</th>
+                                    <th>Status</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for attendance in attendances %}
+                                <tr>
+                                    <td>{{ attendance.date|date:"M d, Y" }}</td>
+                                    <td>
+                                        {% if attendance.entry_time %}
+                                            {{ attendance.entry_time|time:"g:i A" }}
+                                        {% else %}
+                                            <span class="text-muted">-</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        {% if attendance.exit_time %}
+                                            {{ attendance.exit_time|time:"g:i A" }}
+                                        {% else %}
+                                            <span class="text-muted">-</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        {% if attendance.is_late %}
+                                            <span class="badge bg-warning text-dark">Late</span>
+                                        {% elif attendance.entry_time %}
+                                            <span class="badge bg-success">Present</span>
+                                        {% endif %}
+                                        {% if attendance.is_early_exit %}
+                                            <span class="badge bg-danger ms-1">Early Exit</span>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    
+                    <div class="mt-3">
+                        <a href="{% url 'attendance_records' %}?student={{ student.roll_number }}" class="btn btn-primary">
+                            View Full History
+                        </a>
+                    </div>
+                {% else %}
+                    <div class="text-center text-muted py-5">
+                        <i class="fas fa-calendar-times fa-3x mb-3"></i>
+                        <p>No attendance records yet</p>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

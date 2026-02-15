@@ -1,0 +1,152 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Faculty Registration - SmartSense{% endblock %}
+
+{% block extra_css %}
+<style>
+    .signup-container {
+        max-width: 800px;
+        margin: 3rem auto;
+    }
+    
+    .form-section {
+        background: white;
+        padding: 2.5rem;
+        border-radius: 15px;
+        box-shadow: 0 10px 40px rgba(0,0,0,0.1);
+    }
+    
+    .section-title {
+        color: var(--primary-color);
+        margin-bottom: 1.5rem;
+        padding-bottom: 1rem;
+        border-bottom: 2px solid #e2e8f0;
+    }
+    
+    .form-label {
+        font-weight: 500;
+        color: var(--dark-color);
+        margin-bottom: 0.5rem;
+    }
+    
+    .form-control:focus {
+        border-color: var(--primary-color);
+        box-shadow: 0 0 0 0.2rem rgba(37, 99, 235, 0.25);
+    }
+    
+    .btn-register {
+        background: linear-gradient(135deg, #f59e0b, #d97706);
+        border: none;
+        padding: 1rem 2rem;
+        font-size: 1.1rem;
+        font-weight: 600;
+        border-radius: 10px;
+        transition: all 0.3s ease;
+    }
+    
+    .btn-register:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 10px 20px rgba(245, 158, 11, 0.3);
+    }
+    
+    .info-box {
+        background: #fef3c7;
+        border-left: 4px solid #f59e0b;
+        padding: 1rem;
+        border-radius: 5px;
+        margin-bottom: 1.5rem;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="signup-container">
+    <div class="form-section">
+        <h2 class="section-title">
+            <i class="fas fa-user-tie"></i> Faculty Registration
+        </h2>
+        
+        <div class="info-box">
+            <i class="fas fa-info-circle"></i>
+            <strong>Faculty Access:</strong> Register to get full administrative access to monitor and manage student attendance.
+        </div>
+
+        <form method="post" id="facultySignupForm">
+            {% csrf_token %}
+            
+            <!-- Login Credentials -->
+            <div class="row mb-4">
+                <div class="col-md-6">
+                    <label class="form-label">Username *</label>
+                    <input type="text" name="username" class="form-control" required 
+                           placeholder="Enter username">
+                </div>
+                <div class="col-md-6">
+                    <label class="form-label">Password *</label>
+                    <input type="password" name="password" class="form-control" required 
+                           placeholder="Enter password">
+                </div>
+            </div>
+            
+            <!-- Personal Information -->
+            <div class="row mb-4">
+                <div class="col-md-6">
+                    <label class="form-label">Full Name *</label>
+                    <input type="text" name="name" class="form-control" required 
+                           placeholder="Dr. John Doe">
+                </div>
+                <div class="col-md-6">
+                    <label class="form-label">Faculty ID *</label>
+                    <input type="text" name="faculty_id" class="form-control" required 
+                           placeholder="FAC001">
+                </div>
+            </div>
+            
+            <!-- Contact Information -->
+            <div class="row mb-4">
+                <div class="col-md-6">
+                    <label class="form-label">Email *</label>
+                    <input type="email" name="email" class="form-control" required 
+                           placeholder="faculty@smartsense.com">
+                </div>
+                <div class="col-md-6">
+                    <label class="form-label">Phone Number *</label>
+                    <input type="tel" name="phone" class="form-control" required 
+                           pattern="[0-9]{10}" placeholder="9876543210">
+                    <small class="text-muted">10 digits only</small>
+                </div>
+            </div>
+            
+            <!-- Department -->
+            <div class="row mb-4">
+                <div class="col-md-12">
+                    <label class="form-label">Department *</label>
+                    <input type="text" name="department" class="form-control" required 
+                           placeholder="Computer Science">
+                </div>
+            </div>
+            
+            <!-- Submit Buttons -->
+            <div class="d-grid gap-2 d-md-flex justify-content-md-between">
+                <a href="{% url 'login' %}" class="btn btn-outline-secondary">
+                    <i class="fas fa-arrow-left"></i> Back to Login
+                </a>
+                <button type="submit" class="btn btn-register text-white">
+                    <i class="fas fa-user-plus"></i> Register as Faculty
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+document.getElementById('facultySignupForm').addEventListener('submit', function(e) {
+    const phone = document.querySelector('input[name="phone"]').value;
+    if (!/^\d{10}$/.test(phone)) {
+        e.preventDefault();
+        alert('Please enter a valid 10-digit phone number');
+    }
+});
+</script>
+{% endblock %}

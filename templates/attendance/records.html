@@ -1,0 +1,123 @@
+{% extends 'base.html' %}
+
+{% block title %}Attendance Records - SmartSense{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h3 class="mb-0"><i class="fas fa-clipboard-list"></i> Attendance Records</h3>
+                <a href="{% url 'export_csv' %}{% if date_filter or student_filter %}?{% if date_filter %}date={{ date_filter }}{% endif %}{% if student_filter %}&student={{ student_filter }}{% endif %}{% endif %}" class="btn btn-success">
+                    <i class="fas fa-download"></i> Export CSV
+                </a>
+            </div>
+            <div class="card-body">
+                <!-- Filters -->
+                <form method="get" class="row g-3 mb-4">
+                    <div class="col-md-3">
+                        <label class="form-label">Filter by Date</label>
+                        <input type="date" name="date" class="form-control" value="{{ date_filter }}">
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label">Filter by Roll Number</label>
+                        <input type="text" name="student" class="form-control" placeholder="Enter roll number" value="{{ student_filter }}">
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label">Filter by Status</label>
+                        <select name="status" class="form-select">
+                            <option value="">All</option>
+                            <option value="late" {% if status_filter == 'late' %}selected{% endif %}>Late Arrivals</option>
+                            <option value="early_exit" {% if status_filter == 'early_exit' %}selected{% endif %}>Early Exits</option>
+                        </select>
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label">&nbsp;</label>
+                        <div class="d-grid gap-2">
+                            <button type="submit" class="btn btn-primary">
+                                <i class="fas fa-filter"></i> Apply Filters
+                            </button>
+                            <a href="{% url 'attendance_records' %}" class="btn btn-outline-secondary">
+                                <i class="fas fa-redo"></i> Clear
+                            </a>
+                        </div>
+                    </div>
+                </form>
+                
+                <!-- Records Table -->
+                {% if records %}
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>#</th>
+                                    <th>Student Name</th>
+                                    <th>Roll Number</th>
+                                    <th>Date</th>
+                                    <th>Entry Time</th>
+                                    <th>Exit Time</th>
+                                    <th>Status</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for record in records %}
+                                <tr>
+                                    <td>{{ forloop.counter }}</td>
+                                    <td>{{ record.student.name }}</td>
+                                    <td>{{ record.student.roll_number }}</td>
+                                    <td>{{ record.date|date:"M d, Y" }}</td>
+                                    <td>
+                                        {% if record.entry_time %}
+                                            {{ record.entry_time|time:"g:i A" }}
+                                        {% else %}
+                                            <span class="text-muted">-</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        {% if record.exit_time %}
+                                            {{ record.exit_time|time:"g:i A" }}
+                                        {% else %}
+                                            <span class="text-muted">-</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        {% if record.is_late %}
+                                            <span class="badge bg-warning text-dark">
+                                                <i class="fas fa-clock"></i> Late
+                                            </span>
+                                        {% elif record.entry_time %}
+                                            <span class="badge bg-success">
+                                                <i class="fas fa-check"></i> Present
+                                            </span>
+                                        {% endif %}
+                                        {% if record.is_early_exit %}
+                                            <span class="badge bg-danger ms-1">
+                                                <i class="fas fa-sign-out-alt"></i> Early Exit
+                                            </span>
+                                        {% elif record.exit_time and not record.is_early_exit %}
+                                            <span class="badge bg-info ms-1">
+                                                <i class="fas fa-door-open"></i> Exit Marked
+                                            </span>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    
+                    <div class="mt-3">
+                        <p class="text-muted">Total Records: {{ records|length }}</p>
+                    </div>
+                {% else %}
+                    <div class="text-center text-muted py-5">
+                        <i class="fas fa-inbox fa-4x mb-3"></i>
+                        <h4>No Records Found</h4>
+                        <p>No attendance records match your filter criteria.</p>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

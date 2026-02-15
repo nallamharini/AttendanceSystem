@@ -1,0 +1,289 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Calendar View - SmartSense{% endblock %}
+
+{% block extra_css %}
+<style>
+.calendar-container {
+    background: white;
+    padding: 20px;
+    border-radius: 15px;
+    box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+}
+
+.calendar-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+}
+
+.calendar-grid {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    gap: 10px;
+}
+
+.calendar-day-header {
+    text-align: center;
+    font-weight: 600;
+    padding: 10px;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    border-radius: 5px;
+}
+
+.calendar-day {
+    aspect-ratio: 1;
+    border: 2px solid #e2e8f0;
+    border-radius: 10px;
+    padding: 10px;
+    position: relative;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.calendar-day:hover {
+    transform: scale(1.05);
+    box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+}
+
+.calendar-day.today {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    border-color: #667eea;
+}
+
+.calendar-day.holiday {
+    background: #fee;
+    border-color: #f00;
+}
+
+.calendar-day.has-attendance {
+    background: #efe;
+    border-color: #0f0;
+}
+
+.calendar-day.other-month {
+    opacity: 0.3;
+}
+
+.day-number {
+    font-size: 1.2rem;
+    font-weight: 600;
+}
+
+.day-indicator {
+    position: absolute;
+    bottom: 5px;
+    right: 5px;
+    font-size: 0.7rem;
+}
+
+.legend {
+    display: flex;
+    gap: 20px;
+    justify-content: center;
+    margin-top: 20px;
+    flex-wrap: wrap;
+}
+
+.legend-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.legend-box {
+    width: 20px;
+    height: 20px;
+    border-radius: 4px;
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="calendar-container">
+        <div class="calendar-header">
+            <button class="btn btn-outline-primary" onclick="changeMonth(-1)">
+                <i class="fas fa-chevron-left"></i> Previous
+            </button>
+            <h3 id="currentMonth" class="mb-0"></h3>
+            <button class="btn btn-outline-primary" onclick="changeMonth(1)">
+                Next <i class="fas fa-chevron-right"></i>
+            </button>
+        </div>
+
+        <div id="calendarView" class="calendar-grid mb-3">
+            <!-- Calendar will be generated here -->
+        </div>
+
+        <div class="legend">
+            <div class="legend-item">
+                <div class="legend-box" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);"></div>
+                <span>Today</span>
+            </div>
+            <div class="legend-item">
+                <div class="legend-box" style="background: #fee; border: 2px solid #f00;"></div>
+                <span>Holiday</span>
+            </div>
+            <div class="legend-item">
+                <div class="legend-box" style="background: #efe; border: 2px solid #0f0;"></div>
+                <span>Has Attendance</span>
+            </div>
+        </div>
+    </div>
+
+    <div class="row mt-4">
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header bg-danger text-white">
+                    <h5 class="mb-0"><i class="fas fa-calendar-times me-2"></i>Upcoming Holidays</h5>
+                </div>
+                <div class="card-body">
+                    <ul class="list-group">
+                        {% for holiday in holidays %}
+                        <li class="list-group-item d-flex justify-content-between align-items-center">
+                            <div>
+                                <strong>{{ holiday.name }}</strong><br>
+                                <small class="text-muted">{{ holiday.date|date:"l, F d, Y" }}</small>
+                            </div>
+                            <span class="badge bg-danger">{{ holiday.date|date:"d M" }}</span>
+                        </li>
+                        {% empty %}
+                        <li class="list-group-item text-muted">No upcoming holidays</li>
+                        {% endfor %}
+                    </ul>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header bg-success text-white">
+                    <h5 class="mb-0"><i class="fas fa-chart-bar me-2"></i>Month Statistics</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row text-center">
+                        <div class="col-6 mb-3">
+                            <h3 class="text-primary mb-0" id="totalDays">0</h3>
+                            <small class="text-muted">Working Days</small>
+                        </div>
+                        <div class="col-6 mb-3">
+                            <h3 class="text-danger mb-0">{{ holidays|length }}</h3>
+                            <small class="text-muted">Holidays</small>
+                        </div>
+                        <div class="col-12">
+                            <h3 class="text-success mb-0" id="attendanceDays">0</h3>
+                            <small class="text-muted">Days with Attendance</small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+const today = new Date({{ today.year }}, {{ today.month }} - 1, {{ today.day }});
+let currentYear = {{ year }};
+let currentMonth = {{ month }} - 1; // JavaScript months are 0-indexed
+
+const holidays = {{ holidays_json|safe }};
+const attendanceData = {{ attendance_data|safe }};
+
+const monthNames = ["January", "February", "March", "April", "May", "June",
+    "July", "August", "September", "October", "November", "December"];
+const dayNames = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+
+function renderCalendar() {
+    const firstDay = new Date(currentYear, currentMonth, 1);
+    const lastDay = new Date(currentYear, currentMonth + 1, 0);
+    const prevLastDay = new Date(currentYear, currentMonth, 0);
+    
+    const firstDayOfWeek = firstDay.getDay();
+    const totalDays = lastDay.getDate();
+    const prevDays = prevLastDay.getDate();
+    
+    document.getElementById('currentMonth').textContent = `${monthNames[currentMonth]} ${currentYear}`;
+    
+    let calendarHTML = '';
+    
+    // Add day headers
+    dayNames.forEach(day => {
+        calendarHTML += `<div class="calendar-day-header">${day}</div>`;
+    });
+    
+    // Previous month's days
+    for (let i = firstDayOfWeek - 1; i >= 0; i--) {
+        calendarHTML += `<div class="calendar-day other-month">
+            <div class="day-number">${prevDays - i}</div>
+        </div>`;
+    }
+    
+    // Current month's days
+    let workingDays = 0;
+    let attendanceDaysCount = 0;
+    
+    for (let day = 1; day <= totalDays; day++) {
+        const dateStr = `${currentYear}-${String(currentMonth + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+        const isToday = (day === today.getDate() && currentMonth === today.getMonth() && currentYear === today.getFullYear());
+        const isHoliday = holidays.some(h => h.fields.date === dateStr);
+        const hasAttendance = attendanceData.some(a => a.date === dateStr);
+        
+        let dayClass = 'calendar-day';
+        if (isToday) dayClass += ' today';
+        if (isHoliday) dayClass += ' holiday';
+        else if (hasAttendance) {
+            dayClass += ' has-attendance';
+            attendanceDaysCount++;
+        }
+        
+        if (!isHoliday) workingDays++;
+        
+        let indicator = '';
+        if (isHoliday) {
+            const holidayInfo = holidays.find(h => h.fields.date === dateStr);
+            indicator = `<div class="day-indicator" title="${holidayInfo.fields.name}">🎉</div>`;
+        } else if (hasAttendance) {
+            const attData = attendanceData.find(a => a.date === dateStr);
+            indicator = `<div class="day-indicator" title="${attData.total} present">✓</div>`;
+        }
+        
+        calendarHTML += `<div class="${dayClass}">
+            <div class="day-number">${day}</div>
+            ${indicator}
+        </div>`;
+    }
+    
+    // Next month's days
+    const remainingDays = 42 - (firstDayOfWeek + totalDays);
+    for (let day = 1; day <= remainingDays; day++) {
+        calendarHTML += `<div class="calendar-day other-month">
+            <div class="day-number">${day}</div>
+        </div>`;
+    }
+    
+    document.getElementById('calendarView').innerHTML = calendarHTML;
+    document.getElementById('totalDays').textContent = workingDays;
+    document.getElementById('attendanceDays').textContent = attendanceDaysCount;
+}
+
+function changeMonth(delta) {
+    currentMonth += delta;
+    if (currentMonth > 11) {
+        currentMonth = 0;
+        currentYear++;
+    } else if (currentMonth < 0) {
+        currentMonth = 11;
+        currentYear--;
+    }
+    
+    // Reload with new month
+    window.location.href = `?year=${currentYear}&month=${currentMonth + 1}`;
+}
+
+renderCalendar();
+</script>
+{% endblock %}

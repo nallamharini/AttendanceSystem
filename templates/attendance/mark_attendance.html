@@ -1,0 +1,279 @@
+{% extends 'base.html' %}
+
+{% block title %}Mark Attendance - SmartSense{% endblock %}
+
+{% block extra_css %}
+<style>
+    #video {
+        width: 100%;
+        max-width: 640px;
+        border-radius: 15px;
+        box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+        background: #000;
+    }
+    
+    #canvas {
+        display: none;
+    }
+    
+    .video-container {
+        position: relative;
+        display: inline-block;
+    }
+    
+    .video-overlay {
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        width: 300px;
+        height: 400px;
+        border: 3px solid #10b981;
+        border-radius: 50%;
+        opacity: 0.5;
+        pointer-events: none;
+    }
+    
+    .result-box {
+        padding: 2rem;
+        border-radius: 15px;
+        margin-top: 2rem;
+        display: none;
+    }
+    
+    .result-box.success {
+        background: linear-gradient(135deg, #10b981, #059669);
+        color: white;
+    }
+    
+    .result-box.error {
+        background: linear-gradient(135deg, #ef4444, #dc2626);
+        color: white;
+    }
+    
+    .loading {
+        display: none;
+        text-align: center;
+        margin-top: 1rem;
+    }
+    
+    .spinner-border {
+        width: 3rem;
+        height: 3rem;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+{% if is_holiday %}
+<div class="row justify-content-center">
+    <div class="col-lg-10">
+        <div class="card border-0 shadow-lg">
+            <div class="card-body text-center p-5" style="background: linear-gradient(135deg, #ff6b6b, #ee5a6f); color: white; border-radius: 15px;">
+                <div style="font-size: 5rem; margin-bottom: 1rem;">🎉</div>
+                <h2 class="mb-3">{{ holiday_info.name }}</h2>
+                <h4 class="mb-3">{{ today|date:"l, F d, Y" }}</h4>
+                <p class="lead mb-4">{{ holiday_info.description|default:"Happy Holiday!" }}</p>
+                <div class="alert alert-light">
+                    <i class="fas fa-info-circle me-2"></i>
+                    <strong>No attendance required today!</strong> Enjoy your holiday!
+                </div>
+                <a href="{% url 'home' %}" class="btn btn-light btn-lg mt-3">
+                    <i class="fas fa-home me-2"></i>Return to Home
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+{% else %}
+<div class="row justify-content-center">
+    <div class="col-lg-10">
+        <div class="card">
+            <div class="card-header">
+                <h3 class="mb-0">
+                    <i class="fas fa-camera"></i> Mark Your Attendance
+                </h3>
+            </div>
+            <div class="card-body text-center p-5">
+                <div class="alert alert-info">
+                    <i class="fas fa-info-circle"></i> 
+                    <strong>Instructions:</strong> Position your face within the frame and click "Capture & Mark Attendance"
+                </div>
+                
+                <div class="video-container mb-4">
+                    <video id="video" autoplay playsinline></video>
+                    <div class="video-overlay"></div>
+                </div>
+                <canvas id="canvas"></canvas>
+                
+                <div class="d-grid gap-3 d-md-flex justify-content-md-center">
+                    <button onclick="captureAttendance()" class="btn btn-primary btn-lg" id="captureBtn">
+                        <i class="fas fa-camera"></i> Capture & Mark Attendance
+                    </button>
+                    <button onclick="location.reload()" class="btn btn-outline-secondary btn-lg">
+                        <i class="fas fa-redo"></i> Retry
+                    </button>
+                </div>
+                
+                <div class="loading" id="loading">
+                    <div class="spinner-border text-primary" role="status">
+                        <span class="visually-hidden">Processing...</span>
+                    </div>
+                    <p class="mt-3">Processing your attendance...</p>
+                </div>
+                
+                <div class="result-box" id="resultBox">
+                    <h4 id="resultMessage"></h4>
+                    <div id="resultDetails" class="mt-3"></div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="card mt-4">
+            <div class="card-body">
+                <h5><i class="fas fa-clock"></i> How It Works</h5>
+                <div class="row mt-3">
+                    <div class="col-md-4 text-center mb-3">
+                        <div class="display-6 text-primary mb-2">1</div>
+                        <p>Allow camera access when prompted</p>
+                    </div>
+                    <div class="col-md-4 text-center mb-3">
+                        <div class="display-6 text-primary mb-2">2</div>
+                        <p>Position your face in front of camera</p>
+                    </div>
+                    <div class="col-md-4 text-center mb-3">
+                        <div class="display-6 text-primary mb-2">3</div>
+                        <p>Click capture to mark attendance</p>
+                    </div>
+                </div>
+                <div class="alert alert-warning mt-3">
+                    <i class="fas fa-exclamation-triangle"></i>
+                    <strong>Note:</strong> Entry time is tracked on first capture. Exit time is tracked on second capture of the same day.
+                    <br><strong>Attendance Rules:</strong>
+                    <ul class="mb-0 mt-2">
+                        <li>Entry at or before 9:30 AM = <span class="badge bg-success">Present</span></li>
+                        <li>Entry after 9:30 AM = <span class="badge bg-warning text-dark">Late</span></li>
+                        <li>Exit before 4:00 PM = <span class="badge bg-danger">Early Exit</span></li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
+{% endblock %}
+
+{% block extra_js %}
+{% if not is_holiday %}
+<script>
+    const video = document.getElementById('video');
+    const canvas = document.getElementById('canvas');
+    const resultBox = document.getElementById('resultBox');
+    const resultMessage = document.getElementById('resultMessage');
+    const resultDetails = document.getElementById('resultDetails');
+    const loading = document.getElementById('loading');
+    const captureBtn = document.getElementById('captureBtn');
+    
+    // Request camera access
+    navigator.mediaDevices.getUserMedia({ 
+        video: { 
+            width: { ideal: 1280 },
+            height: { ideal: 720 },
+            facingMode: 'user'
+        } 
+    })
+    .then(stream => { 
+        video.srcObject = stream; 
+    })
+    .catch(err => {
+        alert('Camera access denied! Please allow camera access to mark attendance.');
+        console.error(err);
+    });
+    
+    function captureAttendance() {
+        // Hide previous results
+        resultBox.style.display = 'none';
+        loading.style.display = 'block';
+        captureBtn.disabled = true;
+        
+        // Capture image
+        const context = canvas.getContext('2d');
+        canvas.width = video.videoWidth;
+        canvas.height = video.videoHeight;
+        context.drawImage(video, 0, 0);
+        
+        const imageData = canvas.toDataURL('image/jpeg', 0.95);
+        
+        // Get CSRF token
+        const csrftoken = getCookie('csrftoken');
+        
+        // Send to server
+        fetch('/attendance/mark/', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': csrftoken
+            },
+            body: JSON.stringify({ image: imageData })
+        })
+        .then(res => res.json())
+        .then(data => {
+            loading.style.display = 'none';
+            captureBtn.disabled = false;
+            resultBox.style.display = 'block';
+            
+            if (data.success) {
+                resultBox.className = 'result-box success';
+                resultMessage.innerHTML = '<i class="fas fa-check-circle fa-3x mb-3"></i><br>' + data.message;
+                resultDetails.innerHTML = `
+                    <div class="row mt-4">
+                        <div class="col-md-4">
+                            <strong>Student:</strong> ${data.student}
+                        </div>
+                        <div class="col-md-4">
+                            <strong>Roll No:</strong> ${data.roll_number}
+                        </div>
+                        <div class="col-md-4">
+                            <strong>Time:</strong> ${data.time}
+                        </div>
+                    </div>
+                `;
+                
+                // Auto refresh after 3 seconds
+                setTimeout(() => {
+                    location.reload();
+                }, 3000);
+            } else {
+                resultBox.className = 'result-box error';
+                resultMessage.innerHTML = '<i class="fas fa-times-circle fa-3x mb-3"></i><br>' + data.message;
+                resultDetails.innerHTML = '';
+            }
+        })
+        .catch(error => {
+            loading.style.display = 'none';
+            captureBtn.disabled = false;
+            resultBox.style.display = 'block';
+            resultBox.className = 'result-box error';
+            resultMessage.innerHTML = '<i class="fas fa-exclamation-triangle fa-3x mb-3"></i><br>Error: ' + error.message;
+            console.error('Error:', error);
+        });
+    }
+    
+    // Get CSRF token from cookies
+    function getCookie(name) {
+        let cookieValue = null;
+        if (document.cookie && document.cookie !== '') {
+            const cookies = document.cookie.split(';');
+            for (let i = 0; i < cookies.length; i++) {
+                const cookie = cookies[i].trim();
+                if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                    cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                    break;
+                }
+            }
+        }
+        return cookieValue;
+    }
+</script>
+{% endif %}
+{% endblock %}

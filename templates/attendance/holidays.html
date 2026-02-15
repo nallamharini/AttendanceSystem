@@ -1,0 +1,181 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Holiday Management - SmartSense{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="row">
+        <div class="col-md-8">
+            <div class="card shadow">
+                <div class="card-header">
+                    <h4 class="mb-0"><i class="fas fa-calendar-check"></i> All Holidays</h4>
+                </div>
+                <div class="card-body">
+                    {% if upcoming_holidays %}
+                    <h5 class="text-primary"><i class="fas fa-calendar-day me-2"></i>Upcoming Holidays</h5>
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead>
+                                <tr>
+                                    <th>Name</th>
+                                    <th>Date</th>
+                                    <th>Description</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for holiday in upcoming_holidays %}
+                                <tr>
+                                    <td><strong>{{ holiday.name }}</strong></td>
+                                    <td>{{ holiday.date|date:"d M, Y" }}</td>
+                                    <td>{{ holiday.description|default:"—" }}</td>
+                                    <td>
+                                        <a href="{% url 'delete_holiday' holiday.pk %}" class="btn btn-sm btn-danger" onclick="return confirm('Delete this holiday?')">
+                                            <i class="fas fa-trash"></i>
+                                        </a>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    <hr>
+                    {% endif %}
+
+                    {% if past_holidays %}
+                    <h5 class="text-secondary"><i class="fas fa-history me-2"></i>Recent Past Holidays</h5>
+                    <div class="table-responsive">
+                        <table class="table table-sm">
+                            <thead>
+                                <tr>
+                                    <th>Name</th>
+                                    <th>Date</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for holiday in past_holidays %}
+                                <tr class="text-muted">
+                                    <td>{{ holiday.name }}</td>
+                                    <td>{{ holiday.date|date:"d M, Y" }}</td>
+                                    <td>
+                                        <a href="{% url 'delete_holiday' holiday.pk %}" class="btn btn-sm btn-outline-danger" onclick="return confirm('Delete this holiday?')">
+                                            <i class="fas fa-trash"></i>
+                                        </a>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    {% endif %}
+
+                    {% if not upcoming_holidays and not past_holidays %}
+                    <div class="text-center text-muted py-4">
+                        <i class="fas fa-calendar-times fa-3x mb-3"></i>
+                        <p>No holidays added yet. Add your first holiday!</p>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-4">
+            <div class="card shadow">
+                <div class="card-header bg-success text-white">
+                    <h5 class="mb-0"><i class="fas fa-plus-circle me-2"></i>Add Holiday</h5>
+                </div>
+                <div class="card-body">
+                    <div id="alertMessage"></div>
+                    
+                    <form id="addHolidayForm">
+                        <div class="mb-3">
+                            <label for="name" class="form-label">Holiday Name *</label>
+                            <input type="text" class="form-control" id="name" required placeholder="e.g., Republic Day">
+                        </div>
+                        <div class="mb-3">
+                            <label for="date" class="form-label">Date *</label>
+                            <input type="date" class="form-control" id="date" required>
+                        </div>
+                        <div class="mb-3">
+                            <label for="description" class="form-label">Description</label>
+                            <textarea class="form-control" id="description" rows="2" placeholder="Optional notes"></textarea>
+                        </div>
+                        <div class="d-grid">
+                            <button type="submit" class="btn btn-success">
+                                <i class="fas fa-plus me-2"></i>Add Holiday
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
+            <div class="card shadow mt-3">
+                <div class="card-header bg-info text-white">
+                    <h6 class="mb-0"><i class="fas fa-info-circle me-2"></i>Quick Add</h6>
+                </div>
+                <div class="card-body">
+                    <p class="small mb-2">Common Indian Holidays:</p>
+                    <button class="btn btn-sm btn-outline-primary w-100 mb-1" onclick="quickAdd('Republic Day', '2026-01-26')">Republic Day (26 Jan)</button>
+                    <button class="btn btn-sm btn-outline-primary w-100 mb-1" onclick="quickAdd('Independence Day', '2026-08-15')">Independence Day (15 Aug)</button>
+                    <button class="btn btn-sm btn-outline-primary w-100 mb-1" onclick="quickAdd('Gandhi Jayanti', '2026-10-02')">Gandhi Jayanti (2 Oct)</button>
+                    <button class="btn btn-sm btn-outline-primary w-100 mb-1" onclick="quickAdd('Diwali', '2026-11-10')">Diwali (Estimated)</button>
+                    <button class="btn btn-sm btn-outline-primary w-100" onclick="quickAdd('Holi', '2026-03-14')">Holi (Estimated)</button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.getElementById('addHolidayForm').addEventListener('submit', async function(e) {
+    e.preventDefault();
+    
+    let formData = {
+        name: document.getElementById('name').value,
+        date: document.getElementById('date').value,
+        description: document.getElementById('description').value
+    };
+    
+    try {
+        let response = await fetch('{% url "add_holiday" %}', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(formData)
+        });
+        
+        let data = await response.json();
+        
+        if (data.success) {
+            showAlert('success', data.message);
+            setTimeout(() => {
+                location.reload();
+            }, 1500);
+        } else {
+            showAlert('danger', data.message);
+        }
+    } catch (error) {
+        showAlert('danger', 'An error occurred. Please try again.');
+        console.error(error);
+    }
+});
+
+function quickAdd(name, date) {
+    document.getElementById('name').value = name;
+    document.getElementById('date').value = date;
+}
+
+function showAlert(type, message) {
+    let alertDiv = document.getElementById('alertMessage');
+    alertDiv.innerHTML = `
+        <div class="alert alert-${type} alert-dismissible fade show" role="alert">
+            ${message}
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+    `;
+}
+</script>
+{% endblock %}

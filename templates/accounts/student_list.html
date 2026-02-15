@@ -1,0 +1,87 @@
+{% extends 'base.html' %}
+
+{% block title %}Students List - SmartSense{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h3 class="mb-0"><i class="fas fa-users"></i> Registered Students</h3>
+                <a href="{% url 'student_register' %}" class="btn btn-primary">
+                    <i class="fas fa-user-plus"></i> Add New Student
+                </a>
+            </div>
+            <div class="card-body">
+                {% if students %}
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>#</th>
+                                    <th>Name</th>
+                                    <th>Roll Number</th>
+                                    <th>Email</th>
+                                    <th>Department</th>
+                                    <th>Phone</th>
+                                    <th>Registered On</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for student in students %}
+                                <tr>
+                                    <td>{{ forloop.counter }}</td>
+                                    <td>
+                                        <strong>{{ student.name }}</strong>
+                                        {% if student.face_encoding %}
+                                            <span class="badge bg-success ms-2" title="Face registered">
+                                                <i class="fas fa-check"></i>
+                                            </span>
+                                        {% endif %}
+                                    </td>
+                                    <td>{{ student.roll_number }}</td>
+                                    <td>{{ student.email }}</td>
+                                    <td>{{ student.department }}</td>
+                                    <td>{{ student.phone|default:"-" }}</td>
+                                    <td>{{ student.created_at|date:"M d, Y" }}</td>
+                                    <td>
+                                        <div class="btn-group btn-group-sm">
+                                            <a href="{% url 'student_detail' student.pk %}" class="btn btn-info" title="View Details">
+                                                <i class="fas fa-eye"></i>
+                                            </a>
+                                            <button onclick="deleteStudent({{ student.pk }}, '{{ student.name }}')" class="btn btn-danger" title="Delete">
+                                                <i class="fas fa-trash"></i>
+                                            </button>
+                                        </div>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                {% else %}
+                    <div class="text-center text-muted py-5">
+                        <i class="fas fa-users-slash fa-4x mb-3"></i>
+                        <h4>No Students Registered Yet</h4>
+                        <p>Click "Add New Student" to register your first student.</p>
+                        <a href="{% url 'student_register' %}" class="btn btn-primary mt-3">
+                            <i class="fas fa-user-plus"></i> Register First Student
+                        </a>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    function deleteStudent(id, name) {
+        if (confirm(`Are you sure you want to delete ${name}? This action cannot be undone.`)) {
+            window.location.href = `/students/${id}/delete/`;
+        }
+    }
+</script>
+{% endblock %}

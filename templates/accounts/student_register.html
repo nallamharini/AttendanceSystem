@@ -1,0 +1,273 @@
+{% extends 'base.html' %}
+
+{% block title %}Register Student - SmartSense{% endblock %}
+
+{% block extra_css %}
+<style>
+    #video {
+        width: 100%;
+        max-width: 400px;
+        border-radius: 15px;
+        box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+        background: #000;
+    }
+    
+    #preview {
+        width: 100%;
+        max-width: 400px;
+        border-radius: 15px;
+        display: none;
+    }
+    
+    #canvas {
+        display: none;
+    }
+    
+    .photo-status {
+        margin-top: 1rem;
+        padding: 1rem;
+        border-radius: 10px;
+        display: none;
+    }
+    
+    .photo-status.captured {
+        background: #d1fae5;
+        border: 2px solid #10b981;
+        color: #065f46;
+        display: block;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-lg-10">
+        <div class="card">
+            <div class="card-header">
+                <h3 class="mb-0">
+                    <i class="fas fa-user-plus"></i> Register New Student
+                </h3>
+            </div>
+            <div class="card-body p-4">
+                <form id="registrationForm">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <h5 class="mb-3"><i class="fas fa-info-circle"></i> Student Information</h5>
+                            
+                            <div class="mb-3">
+                                <label class="form-label">Full Name <span class="text-danger">*</span></label>
+                                <input type="text" class="form-control" id="name" required>
+                            </div>
+                            
+                            <div class="mb-3">
+                                <label class="form-label">Roll Number <span class="text-danger">*</span></label>
+                                <input type="text" class="form-control" id="roll_number" required>
+                            </div>
+                            
+                            <div class="mb-3">
+                                <label class="form-label">Email <span class="text-danger">*</span></label>
+                                <input type="email" class="form-control" id="email" required>
+                            </div>
+                            
+                            <div class="mb-3">
+                                <label class="form-label">Department</label>
+                                <select class="form-select" id="department">
+                                    <option value="Computer Science">Computer Science</option>
+                                    <option value="Electronics">Electronics</option>
+                                    <option value="Mechanical">Mechanical</option>
+                                    <option value="Civil">Civil</option>
+                                    <option value="Electrical">Electrical</option>
+                                </select>
+                            </div>
+                            
+                            <div class="mb-3">
+                                <label class="form-label">Phone Number</label>
+                                <input type="tel" class="form-control" id="phone">
+                            </div>
+                        </div>
+                        
+                        <div class="col-md-6">
+                            <h5 class="mb-3"><i class="fas fa-camera"></i> Capture Face Photo</h5>
+                            
+                            <div class="text-center">
+                                <div id="videoContainer">
+                                    <video id="video" autoplay playsinline></video>
+                                </div>
+                                <img id="preview" alt="Preview">
+                                <canvas id="canvas"></canvas>
+                                
+                                <div class="photo-status" id="photoStatus">
+                                    <i class="fas fa-check-circle"></i> Photo Captured Successfully
+                                </div>
+                                
+                                <div class="d-grid gap-2 mt-3">
+                                    <button type="button" onclick="capturePhoto()" class="btn btn-info" id="captureBtn">
+                                        <i class="fas fa-camera"></i> Capture Photo
+                                    </button>
+                                    <button type="button" onclick="retakePhoto()" class="btn btn-outline-secondary" id="retakeBtn" style="display: none;">
+                                        <i class="fas fa-redo"></i> Retake Photo
+                                    </button>
+                                </div>
+                                
+                                <div class="alert alert-info mt-3">
+                                    <small>
+                                        <i class="fas fa-info-circle"></i> Ensure your face is clearly visible and well-lit
+                                    </small>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <hr class="my-4">
+                    
+                    <div class="d-grid gap-2 d-md-flex justify-content-md-end">
+                        <button type="button" onclick="location.href='{% url 'student_list' %}'" class="btn btn-outline-secondary">
+                            <i class="fas fa-times"></i> Cancel
+                        </button>
+                        <button type="submit" class="btn btn-primary" id="submitBtn" disabled>
+                            <i class="fas fa-save"></i> Register Student
+                        </button>
+                    </div>
+                </form>
+                
+                <div class="alert alert-dismissible fade show mt-3" id="alertBox" style="display: none;" role="alert">
+                    <span id="alertMessage"></span>
+                    <button type="button" class="btn-close" onclick="document.getElementById('alertBox').style.display='none'"></button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    const video = document.getElementById('video');
+    const canvas = document.getElementById('canvas');
+    const preview = document.getElementById('preview');
+    const photoStatus = document.getElementById('photoStatus');
+    const captureBtn = document.getElementById('captureBtn');
+    const retakeBtn = document.getElementById('retakeBtn');
+    const submitBtn = document.getElementById('submitBtn');
+    const videoContainer = document.getElementById('videoContainer');
+    
+    let capturedImage = null;
+    
+    // Request camera access
+    navigator.mediaDevices.getUserMedia({ 
+        video: { 
+            width: { ideal: 640 },
+            height: { ideal: 480 },
+            facingMode: 'user'
+        } 
+    })
+    .then(stream => { 
+        video.srcObject = stream; 
+    })
+    .catch(err => {
+        showAlert('Camera access denied! Please allow camera access.', 'danger');
+        console.error(err);
+    });
+    
+    function capturePhoto() {
+        const context = canvas.getContext('2d');
+        canvas.width = video.videoWidth;
+        canvas.height = video.videoHeight;
+        context.drawImage(video, 0, 0);
+        
+        capturedImage = canvas.toDataURL('image/jpeg', 0.95);
+        preview.src = capturedImage;
+        
+        // Hide video, show preview
+        videoContainer.style.display = 'none';
+        preview.style.display = 'block';
+        photoStatus.style.display = 'block';
+        captureBtn.style.display = 'none';
+        retakeBtn.style.display = 'block';
+        submitBtn.disabled = false;
+    }
+    
+    function retakePhoto() {
+        videoContainer.style.display = 'block';
+        preview.style.display = 'none';
+        photoStatus.style.display = 'none';
+        captureBtn.style.display = 'block';
+        retakeBtn.style.display = 'none';
+        submitBtn.disabled = true;
+        capturedImage = null;
+    }
+    
+    document.getElementById('registrationForm').addEventListener('submit', function(e) {
+        e.preventDefault();
+        
+        if (!capturedImage) {
+            showAlert('Please capture a photo first!', 'warning');
+            return;
+        }
+        
+        const formData = {
+            name: document.getElementById('name').value,
+            roll_number: document.getElementById('roll_number').value,
+            email: document.getElementById('email').value,
+            department: document.getElementById('department').value,
+            phone: document.getElementById('phone').value,
+            image: capturedImage
+        };
+        
+        submitBtn.disabled = true;
+        submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Registering...';
+        
+        const csrftoken = getCookie('csrftoken');
+        
+        fetch('/students/save/', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': csrftoken
+            },
+            body: JSON.stringify(formData)
+        })
+        .then(res => res.json())
+        .then(data => {
+            if (data.success) {
+                showAlert(data.message, 'success');
+                setTimeout(() => {
+                    window.location.href = '/students/';
+                }, 2000);
+            } else {
+                showAlert(data.message, 'danger');
+                submitBtn.disabled = false;
+                submitBtn.innerHTML = '<i class="fas fa-save"></i> Register Student';
+            }
+        })
+        .catch(error => {
+            showAlert('Error: ' + error.message, 'danger');
+            submitBtn.disabled = false;
+            submitBtn.innerHTML = '<i class="fas fa-save"></i> Register Student';
+        });
+    });
+    
+    function showAlert(message, type) {
+        const alertBox = document.getElementById('alertBox');
+        const alertMessage = document.getElementById('alertMessage');
+        alertBox.className = `alert alert-${type} alert-dismissible fade show`;
+        alertMessage.textContent = message;
+        alertBox.style.display = 'block';
+    }
+    
+    function getCookie(name) {
+        let cookieValue = null;
+        if (document.cookie && document.cookie !== '') {
+            const cookies = document.cookie.split(';');
+            for (let i = 0; i < cookies.length; i++) {
+                const cookie = cookies[i].trim();
+                if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                    cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                    break;
+                }
+            }
+        }
+        return cookieValue;
+    }
+</script>
+{% endblock %}

@@ -1,0 +1,179 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Faculty Dashboard - SmartSense{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <!-- Welcome Banner -->
+    <div class="card bg-gradient-primary text-white mb-4">
+        <div class="card-body py-4">
+            <h2 class="mb-1"><i class="fas fa-chalkboard-teacher me-2"></i>Welcome, {{ faculty.name }}</h2>
+            <p class="mb-0">Faculty ID: {{ faculty.faculty_id }} | Department: {{ faculty.department }}</p>
+            <p class="mb-0 small">{{ today|date:"l, F d, Y" }}</p>
+        </div>
+    </div>
+
+    <!-- Statistics Cards -->
+    <div class="row mb-4">
+        <div class="col-md-3 mb-3">
+            <div class="stat-card bg-primary text-white">
+                <div class="stat-icon"><i class="fas fa-users"></i></div>
+                <h2 class="stat-value">{{ total_students }}</h2>
+                <p class="stat-label mb-0">Total Students</p>
+            </div>
+        </div>
+        <div class="col-md-3 mb-3">
+            <div class="stat-card bg-success text-white">
+                <div class="stat-icon"><i class="fas fa-check-circle"></i></div>
+                <h2 class="stat-value">{{ present_today }}</h2>
+                <p class="stat-label mb-0">Present Today</p>
+            </div>
+        </div>
+        <div class="col-md-3 mb-3">
+            <div class="stat-card bg-danger text-white">
+                <div class="stat-icon"><i class="fas fa-times-circle"></i></div>
+                <h2 class="stat-value">{{ absent_today }}</h2>
+                <p class="stat-label mb-0">Absent Today</p>
+            </div>
+        </div>
+        <div class="col-md-3 mb-3">
+            <div class="stat-card bg-warning text-white">
+                <div class="stat-icon"><i class="fas fa-clock"></i></div>
+                <h2 class="stat-value">{{ late_arrivals }}</h2>
+                <p class="stat-label mb-0">Late Arrivals</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Recent Attendance -->
+    <div class="card shadow">
+        <div class="card-header">
+            <h4 class="mb-0"><i class="fas fa-history me-2"></i>Recent Attendance Records</h4>
+        </div>
+        <div class="card-body">
+            {% if recent_records %}
+            <div class="table-responsive">
+                <table class="table table-hover">
+                    <thead>
+                        <tr>
+                            <th>Student Name</th>
+                            <th>Roll Number</th>
+                            <th>Date</th>
+                            <th>Entry Time</th>
+                            <th>Exit Time</th>
+                            <th>Status</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for record in recent_records %}
+                        <tr>
+                            <td><strong>{{ record.student.name }}</strong></td>
+                            <td>{{ record.student.roll_number }}</td>
+                            <td>{{ record.date|date:"M d, Y" }}</td>
+                            <td>
+                                {% if record.entry_time %}
+                                    {{ record.entry_time|time:"g:i A" }}
+                                {% else %}
+                                    <span class="text-muted">—</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if record.exit_time %}
+                                    {{ record.exit_time|time:"g:i A" }}
+                                {% else %}
+                                    <span class="text-muted">—</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if record.is_late %}
+                                    <span class="badge bg-warning">Late</span>
+                                {% elif record.status == 'EXIT' %}
+                                    <span class="badge bg-info">Exited</span>
+                                {% else %}
+                                    <span class="badge bg-success">Present</span>
+                                {% endif %}
+                                {% if record.is_early_exit %}
+                                    <span class="badge bg-danger">Early Exit</span>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% else %}
+            <div class="text-center py-4 text-muted">
+                <i class="fas fa-clipboard fa-3x mb-3"></i>
+                <p>No attendance records yet</p>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Quick Actions -->
+    <div class="row mt-4">
+        <div class="col-md-4 mb-3">
+            <div class="card text-center h-100">
+                <div class="card-body">
+                    <i class="fas fa-clipboard-list fa-3x text-primary mb-3"></i>
+                    <h5>View All Records</h5>
+                    <p class="text-muted">Access complete attendance history</p>
+                    <a href="{% url 'attendance_records' %}" class="btn btn-primary">View Records</a>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4 mb-3">
+            <div class="card text-center h-100">
+                <div class="card-body">
+                    <i class="fas fa-calendar fa-3x text-success mb-3"></i>
+                    <h5>Calendar View</h5>
+                    <p class="text-muted">See attendance calendar</p>
+                    <a href="{% url 'calendar_view' %}" class="btn btn-success">View Calendar</a>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4 mb-3">
+            <div class="card text-center h-100">
+                <div class="card-body">
+                    <i class="fas fa-chart-bar fa-3x text-warning mb-3"></i>
+                    <h5>Student Analytics</h5>
+                    <p class="text-muted">View performance metrics</p>
+                    <a href="{% url 'student_analytics' %}" class="btn btn-warning">View Analytics</a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+.bg-gradient-primary {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+}
+
+.stat-card {
+    padding: 2rem;
+    border-radius: 15px;
+    text-align: center;
+    box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+}
+
+.stat-icon {
+    font-size: 3rem;
+    margin-bottom: 1rem;
+    opacity: 0.8;
+}
+
+.stat-value {
+    font-size: 2.5rem;
+    font-weight: 700;
+    margin: 0;
+}
+
+.stat-label {
+    font-size: 0.9rem;
+    margin-top: 0.5rem;
+    opacity: 0.9;
+}
+</style>
+{% endblock %}

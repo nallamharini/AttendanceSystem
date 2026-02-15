@@ -1,0 +1,215 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Student Sign Up - SmartSense{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="row justify-content-center">
+        <div class="col-md-10">
+            <div class="card shadow-lg border-0">
+                <div class="card-header bg-gradient-primary text-white text-center py-4">
+                    <h3 class="mb-0"><i class="fas fa-user-plus me-2"></i>Student Registration</h3>
+                    <p class="mb-0 small">Join SmartSense Campus Security System</p>
+                </div>
+                <div class="card-body p-4">
+                    <div id="alertMessage"></div>
+
+                    <form id="signupForm">
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label for="name" class="form-label"><i class="fas fa-user me-1"></i>Full Name *</label>
+                                <input type="text" class="form-control" id="name" required placeholder="Enter your full name">
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label for="roll_number" class="form-label"><i class="fas fa-id-card me-1"></i>Roll Number *</label>
+                                <input type="text" class="form-control" id="roll_number" required placeholder="Your roll number">
+                            </div>
+                        </div>
+
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label for="email" class="form-label"><i class="fas fa-envelope me-1"></i>Email *</label>
+                                <input type="email" class="form-control" id="email" required placeholder="your.email@example.com">
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label for="phone" class="form-label"><i class="fas fa-phone me-1"></i>Phone Number</label>
+                                <input type="tel" class="form-control" id="phone" placeholder="10-digit phone number">
+                            </div>
+                        </div>
+
+                        <div class="row">
+                            <div class="col-md-12 mb-3">
+                                <label for="department" class="form-label"><i class="fas fa-building me-1"></i>Department</label>
+                                <select class="form-select" id="department">
+                                    <option value="Computer Science">Computer Science</option>
+                                    <option value="Information Technology">Information Technology</option>
+                                    <option value="Electronics">Electronics</option>
+                                    <option value="Mechanical">Mechanical</option>
+                                    <option value="Civil">Civil</option>
+                                    <option value="Other">Other</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label for="password" class="form-label"><i class="fas fa-lock me-1"></i>Password *</label>
+                                <input type="password" class="form-control" id="password" required placeholder="At least 6 characters">
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label for="confirm_password" class="form-label"><i class="fas fa-lock me-1"></i>Confirm Password *</label>
+                                <input type="password" class="form-control" id="confirm_password" required placeholder="Re-enter password">
+                            </div>
+                        </div>
+
+                        <div class="card bg-light border-primary mb-3">
+                            <div class="card-body text-center">
+                                <h5 class="card-title"><i class="fas fa-camera me-2"></i>Face Capture</h5>
+                                <p class="text-muted mb-3">Position your face in the frame and capture a clear photo</p>
+                                
+                                <div class="position-relative d-inline-block">
+                                    <video id="video" width="480" height="360" autoplay class="border border-primary rounded"></video>
+                                    <div class="face-guide"></div>
+                                </div>
+                                
+                                <div class="mt-3">
+                                    <button type="button" class="btn btn-primary me-2" onclick="capturePhoto()">
+                                        <i class="fas fa-camera"></i> Capture Photo
+                                    </button>
+                                    <button type="button" class="btn btn-secondary" onclick="retakePhoto()">
+                                        <i class="fas fa-redo"></i> Retake
+                                    </button>
+                                </div>
+                                
+                                <canvas id="canvas" style="display: none;"></canvas>
+                                <img id="photoPreview" class="mt-3 border border-success rounded" style="display: none; max-width: 480px; max-height: 360px;">
+                            </div>
+                        </div>
+
+                        <div class="d-grid gap-2">
+                            <button type="submit" class="btn btn-success btn-lg">
+                                <i class="fas fa-user-check me-2"></i>Register
+                            </button>
+                            <a href="{% url 'login' %}" class="btn btn-outline-secondary">
+                                <i class="fas fa-sign-in-alt me-2"></i>Already have an account? Login
+                            </a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+.bg-gradient-primary {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+}
+
+.face-guide {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 200px;
+    height: 250px;
+    border: 3px solid #667eea;
+    border-radius: 50%;
+    pointer-events: none;
+}
+
+#photoPreview {
+    box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+}
+</style>
+
+<script>
+let video = document.getElementById('video');
+let canvas = document.getElementById('canvas');
+let photoPreview = document.getElementById('photoPreview');
+let capturedImage = null;
+
+// Get camera access
+navigator.mediaDevices.getUserMedia({ video: true })
+    .then(stream => {
+        video.srcObject = stream;
+    })
+    .catch(err => {
+        alert('Camera access denied! Please allow camera access to register.');
+        console.error(err);
+    });
+
+function capturePhoto() {
+    canvas.width = video.videoWidth;
+    canvas.height = video.videoHeight;
+    let ctx = canvas.getContext('2d');
+    ctx.drawImage(video, 0, 0);
+    
+    capturedImage = canvas.toDataURL('image/jpeg');
+    photoPreview.src = capturedImage;
+    photoPreview.style.display = 'block';
+    video.style.display = 'none';
+}
+
+function retakePhoto() {
+    video.style.display = 'block';
+    photoPreview.style.display = 'none';
+    capturedImage = null;
+}
+
+document.getElementById('signupForm').addEventListener('submit', async function(e) {
+    e.preventDefault();
+    
+    if (!capturedImage) {
+        showAlert('danger', 'Please capture your photo first!');
+        return;
+    }
+    
+    let formData = {
+        name: document.getElementById('name').value,
+        roll_number: document.getElementById('roll_number').value,
+        email: document.getElementById('email').value,
+        phone: document.getElementById('phone').value,
+        department: document.getElementById('department').value,
+        password: document.getElementById('password').value,
+        confirm_password: document.getElementById('confirm_password').value,
+        image: capturedImage
+    };
+    
+    try {
+        let response = await fetch('{% url "student_signup" %}', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(formData)
+        });
+        
+        let data = await response.json();
+        
+        if (data.success) {
+            showAlert('success', data.message);
+            setTimeout(() => {
+                window.location.href = '{% url "login" %}';
+            }, 2000);
+        } else {
+            showAlert('danger', data.message);
+        }
+    } catch (error) {
+        showAlert('danger', 'An error occurred. Please try again.');
+        console.error(error);
+    }
+});
+
+function showAlert(type, message) {
+    let alertDiv = document.getElementById('alertMessage');
+    alertDiv.innerHTML = `
+        <div class="alert alert-${type} alert-dismissible fade show" role="alert">
+            ${message}
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+    `;
+}
+</script>
+{% endblock %}
