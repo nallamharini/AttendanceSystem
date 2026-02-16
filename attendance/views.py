@@ -7,6 +7,7 @@ from django.http import JsonResponse, HttpResponse
 from django.shortcuts import render, redirect, get_object_or_404
 from django.utils import timezone
 from django.contrib import messages
+from django.contrib.auth.decorators import login_required
 from django.db.models import Count, Q
 from django.views.decorators.csrf import ensure_csrf_cookie, csrf_exempt
 from datetime import time, datetime, timedelta
@@ -339,9 +340,9 @@ def delete_holiday(request, pk):
     return redirect('holiday_list')
 
 
-@admin_required
+@login_required
 def calendar_view(request):
-    """Calendar view showing attendance and holidays"""
+    """Calendar view showing attendance and holidays - All authenticated users can view"""
     today = timezone.now().date()
     
     # Get current month's data

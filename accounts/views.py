@@ -29,8 +29,8 @@ def login_view(request):
             return redirect('mark_attendance_view')
     
     if request.method == 'POST':
-        username = request.POST.get('username')
-        password = request.POST.get('password')
+        username = request.POST.get('username', '').strip()
+        password = request.POST.get('password', '')
         user_type = request.POST.get('user_type', 'student')
         
         user = authenticate(request, username=username, password=password)
@@ -113,8 +113,8 @@ def reset_password_view(request):
         return redirect('forgot_password')
     
     if request.method == 'POST':
-        new_password = request.POST.get('new_password', '').strip()
-        confirm_password = request.POST.get('confirm_password', '').strip()
+        new_password = request.POST.get('new_password', '')
+        confirm_password = request.POST.get('confirm_password', '')
         
         # Validate passwords
         if not new_password or not confirm_password:
@@ -483,11 +483,15 @@ def faculty_dashboard(request):
     return render(request, 'accounts/faculty_dashboard.html', context)
 
 
-@admin_required
+@login_required
 def student_list(request):
-    """List all students - Admin only"""
+    """List all students - All authenticated users can view"""
     students = Student.objects.filter(is_active=True).order_by('roll_number')
-    context = {'students': students}
+    is_admin = request.user.is_staff or hasattr(request.user, 'faculty_profile')
+    context = {
+        'students': students,
+        'is_admin': is_admin
+    }
     return render(request, 'accounts/student_list.html', context)
 
 @admin_required
