@@ -88,6 +88,13 @@
 {% else %}
 <div class="row justify-content-center">
     <div class="col-lg-10">
+        {% if not face_recognition_available %}
+        <div class="alert alert-danger mb-4">
+            <i class="fas fa-exclamation-triangle me-2"></i>
+            <strong>Face Recognition Service Unavailable!</strong> 
+            Please contact the administrator to enable face recognition.
+        </div>
+        {% endif %}
         <div class="card">
             <div class="card-header">
                 <h3 class="mb-0">
@@ -95,6 +102,14 @@
                 </h3>
             </div>
             <div class="card-body text-center p-5">
+                <!-- Current Time Display -->
+                <div class="alert alert-primary mb-4">
+                    <i class="fas fa-clock"></i> 
+                    <strong>Current Time:</strong> <span id="currentTime" class="fs-5"></span>
+                    <br>
+                    <small id="expectedStatus"></small>
+                </div>
+                
                 <div class="alert alert-info">
                     <i class="fas fa-info-circle"></i> 
                     <strong>Instructions:</strong> Position your face within the frame and click "Capture & Mark Attendance"
@@ -151,9 +166,11 @@
                     <strong>Note:</strong> Entry time is tracked on first capture. Exit time is tracked on second capture of the same day.
                     <br><strong>Attendance Rules:</strong>
                     <ul class="mb-0 mt-2">
-                        <li>Entry at or before 9:30 AM = <span class="badge bg-success">Present</span></li>
-                        <li>Entry after 9:30 AM = <span class="badge bg-warning text-dark">Late</span></li>
-                        <li>Exit before 4:00 PM = <span class="badge bg-danger">Early Exit</span></li>
+                        <li>Entry at or before 9:45 AM = <span class="badge bg-success">On Time</span></li>
+                        <li>Entry between 9:46 AM - 10:30 AM = <span class="badge bg-warning text-dark">Late</span></li>
+                        <li>Entry after 10:30 AM = <span class="badge bg-danger">Absent (Not Allowed)</span></li>
+                        <li>Exit before 4:00 PM = <span class="badge bg-warning text-dark">Early Exit</span></li>
+                        <li>Exit at or after 4:00 PM = <span class="badge bg-success">Normal Exit</span></li>
                     </ul>
                 </div>
             </div>
@@ -173,6 +190,47 @@
     const resultDetails = document.getElementById('resultDetails');
     const loading = document.getElementById('loading');
     const captureBtn = document.getElementById('captureBtn');
+    
+    // Update current time and expected status
+    function updateCurrentTime() {
+        const now = new Date();
+        const hours = now.getHours();
+        const minutes = now.getMinutes();
+        const timeString = now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+        
+        document.getElementById('currentTime').textContent = timeString;
+        
+        // Calculate expected status
+        const currentMinutes = hours * 60 + minutes;
+        const onTimeThreshold = 9 * 60 + 45;  // 9:45 AM
+        const lateThreshold = 10 * 60 + 30;    // 10:30 AM
+        const earlyExitThreshold = 16 * 60;     // 4:00 PM
+        
+        let statusText = '';
+        let statusClass = '';
+        
+        if (currentMinutes <= onTimeThreshold) {
+            statusText = '✅ If you mark entry now, you will be ON TIME';
+            statusClass = 'text-success';
+        } else if (currentMinutes <= lateThreshold) {
+            statusText = '⚠️ If you mark entry now, you will be marked LATE';
+            statusClass = 'text-warning';
+        } else if (currentMinutes < earlyExitThreshold) {
+            statusText = '❌ Entry NOT ALLOWED after 10:30 AM. You will be marked ABSENT';
+            statusClass = 'text-danger';
+        } else {
+            statusText = 'Exit time - You can mark your exit attendance';
+            statusClass = 'text-info';
+        }
+        
+        const statusElement = document.getElementById('expectedStatus');
+        statusElement.textContent = statusText;
+        statusElement.className = `fw-bold ${statusClass}`;
+    }
+    
+    // Update time every second
+    updateCurrentTime();
+    setInterval(updateCurrentTime, 1000);
     
     // Request camera access
     navigator.mediaDevices.getUserMedia({ 
@@ -225,28 +283,57 @@
             if (data.success) {
                 resultBox.className = 'result-box success';
                 resultMessage.innerHTML = '<i class="fas fa-check-circle fa-3x mb-3"></i><br>' + data.message;
+                
+                let statusBadge = '';
+                if (data.status === 'ENTRY') {
+                    if (data.is_late) {
+                        statusBadge = '<span class="badge bg-warning text-dark fs-5">LATE ENTRY</span>';
+                    } else {
+                        statusBadge = '<span class="badge bg-success fs-5">ON TIME</span>';
+                    }
+                } else if (data.status === 'EXIT') {
+                    if (data.is_early_exit) {
+                        statusBadge = '<span class="badge bg-warning text-dark fs-5">EARLY EXIT</span>';
+                    } else {
+                        statusBadge = '<span class="badge bg-success fs-5">NORMAL EXIT</span>';
+                    }
+                }
+                
                 resultDetails.innerHTML = `
                     <div class="row mt-4">
-                        <div class="col-md-4">
-                            <strong>Student:</strong> ${data.student}
+                        <div class="col-md-3">
+                            <strong>Student:</strong><br>${data.student}
                         </div>
-                        <div class="col-md-4">
-                            <strong>Roll No:</strong> ${data.roll_number}
+                        <div class="col-md-3">
+                            <strong>Roll No:</strong><br>${data.roll_number}
                         </div>
-                        <div class="col-md-4">
-                            <strong>Time:</strong> ${data.time}
+                        <div class="col-md-3">
+                            <strong>Time:</strong><br>${data.time}
+                        </div>
+                        <div class="col-md-3">
+                            <strong>Status:</strong><br>${statusBadge}
                         </div>
                     </div>
                 `;
                 
-                // Auto refresh after 3 seconds
+                // Auto refresh after 4 seconds
                 setTimeout(() => {
                     location.reload();
-                }, 3000);
+                }, 4000);
             } else {
                 resultBox.className = 'result-box error';
                 resultMessage.innerHTML = '<i class="fas fa-times-circle fa-3x mb-3"></i><br>' + data.message;
                 resultDetails.innerHTML = '';
+                
+                // If marked absent, show additional info
+                if (data.is_absent) {
+                    resultDetails.innerHTML = `
+                        <div class="alert alert-danger mt-3">
+                            <strong><i class="fas fa-clock"></i> Important:</strong><br>
+                            Entry is only allowed until 10:30 AM. You have been marked as ABSENT for today.
+                        </div>
+                    `;
+                }
             }
         })
         .catch(error => {

@@ -1,9 +1,17 @@
-import face_recognition
+try:
+    import face_recognition
+    FACE_RECOGNITION_AVAILABLE = True
+except ImportError:
+    FACE_RECOGNITION_AVAILABLE = False
+    print("Warning: face_recognition not installed. Face recognition features disabled.")
+
 import numpy as np
 import cv2
 
 def get_face_encoding(image):
     """Extract face encoding from image"""
+    if not FACE_RECOGNITION_AVAILABLE:
+        return None
     try:
         # Ensure image is in RGB format (face_recognition expects RGB)
         if len(image.shape) == 2:  # Grayscale
@@ -30,6 +38,8 @@ def get_face_encoding(image):
 
 def compare_faces(encoding1, encoding2, tolerance=0.6):
     """Compare two face encodings"""
+    if not FACE_RECOGNITION_AVAILABLE:
+        return False
     if encoding1 is None or encoding2 is None:
         return False
     

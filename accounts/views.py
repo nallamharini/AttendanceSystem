@@ -14,7 +14,7 @@ from django.utils import timezone
 from django.db.models import Count
 from .models import Student, Faculty
 from .decorators import admin_required, student_required, faculty_required
-from attendance.utils import get_face_encoding
+from attendance.utils import get_face_encoding, FACE_RECOGNITION_AVAILABLE
 from attendance.models import Attendance
 
 def login_view(request):
@@ -167,7 +167,9 @@ def signup_view(request):
             return redirect('admin_dashboard')
         return redirect('mark_attendance_view')
     
-    return render(request, 'accounts/signup.html')
+    return render(request, 'accounts/signup.html', {
+        'face_recognition_available': FACE_RECOGNITION_AVAILABLE
+    })
 
 
 @csrf_exempt
@@ -186,11 +188,15 @@ def student_signup(request):
             confirm_password = data.get('confirm_password', '').strip()
             image_data = data.get('image', '').split(',')[1] if data.get('image') else None
             
-            # Validate required fields
-            if not all([name, roll_number, email, password, confirm_password, image_data]):
+            # Validate required fields (image_data only required if face recognition is available)
+            required_fields = [name, roll_number, email, password, confirm_password]
+            if FACE_RECOGNITION_AVAILABLE:
+                required_fields.append(image_data)
+            
+            if not all(required_fields):
                 return JsonResponse({
                     'success': False,
-                    'message': 'All fields are required!'
+                    'message': 'All fields are required!' if FACE_RECOGNITION_AVAILABLE else 'Name, roll number, email and password are required!'
                 })
             
             # Validate passwords match
@@ -272,19 +278,22 @@ def student_signup(request):
                     'message': f'A student with name "{name}" is already registered!'
                 })
             
-            # Decode and process image
-            decoded = base64.b64decode(image_data)
-            np_arr = np.frombuffer(decoded, np.uint8)
-            img = cv2.imdecode(np_arr, cv2.IMREAD_COLOR)
-            
-            # Get face encoding
-            encoding = get_face_encoding(img)
-            
-            if encoding is None:
-                return JsonResponse({
-                    'success': False,
-                    'message': 'No face detected! Please capture a clear photo with proper lighting.'
-                })
+            # Get face encoding (only if face recognition is available and image provided)
+            encoding = None
+            if FACE_RECOGNITION_AVAILABLE and image_data:
+                # Decode and process image
+                decoded = base64.b64decode(image_data)
+                np_arr = np.frombuffer(decoded, np.uint8)
+                img = cv2.imdecode(np_arr, cv2.IMREAD_COLOR)
+                
+                # Get face encoding
+                encoding = get_face_encoding(img)
+                
+                if encoding is None:
+                    return JsonResponse({
+                        'success': False,
+                        'message': 'No face detected! Please capture a clear photo with proper lighting.'
+                    })
             
             # Create user account first
             try:
@@ -313,8 +322,9 @@ def student_signup(request):
                     phone=phone if phone else None
                 )
                 
-                # Save face encoding
-                student.set_encoding(encoding)
+                # Save face encoding (if available)
+                if encoding is not None:
+                    student.set_encoding(encoding)
                 student.save()
                 
                 return JsonResponse({
@@ -486,11 +496,43 @@ def faculty_dashboard(request):
 @login_required
 def student_list(request):
     """List all students - All authenticated users can view"""
-    students = Student.objects.filter(is_active=True).order_by('roll_number')
+    # Get department filter
+    department_filter = request.GET.get('department', '')
+    
+    # Filter students
+    students = Student.objects.filter(is_active=True)
+    if department_filter:
+        students = students.filter(department=department_filter)
+    students = students.order_by('roll_number')
+    
+    # Get all departments for filter dropdown
+    departments = Student.objects.filter(is_active=True).values_list('department', flat=True).distinct().order_by('department')
+    
+    # Get today's attendance for each student
+    today = timezone.now().date()
+    from attendance.models import Attendance
+    today_attendance = {}
+    for attendance in Attendance.objects.filter(date=today).select_related('student'):
+        today_attendance[attendance.student.id] = attendance
+    
+    # Calculate today's statistics
+    total_count = students.count()
+    present_count = len([att for att in today_attendance.values() if att.entry_time])
+    absent_count = total_count - present_count
+    late_count = len([att for att in today_attendance.values() if att.is_late])
+    
     is_admin = request.user.is_staff or hasattr(request.user, 'faculty_profile')
     context = {
         'students': students,
-        'is_admin': is_admin
+        'is_admin': is_admin,
+        'departments': departments,
+        'department_filter': department_filter,
+        'today_attendance': today_attendance,
+        'today': today,
+        'total_count': total_count,
+        'present_count': present_count,
+        'absent_count': absent_count,
+        'late_count': late_count,
     }
     return render(request, 'accounts/student_list.html', context)
 
@@ -515,8 +557,12 @@ def save_student(request):
             phone = data.get('phone', '').strip()
             image_data = data.get('image', '').split(',')[1] if data.get('image') else None
             
-            # Validate required fields
-            if not all([name, roll_number, email, image_data]):
+            # Validate required fields (image_data only required if face recognition is available)
+            required_fields = [name, roll_number, email]
+            if FACE_RECOGNITION_AVAILABLE:
+                required_fields.append(image_data)
+            
+            if not all(required_fields):
                 return JsonResponse({
                     'success': False,
                     'message': 'All required fields must be filled!'
@@ -587,19 +633,21 @@ def save_student(request):
                     'message': f'A student with name "{name}" is already registered!'
                 })
             
-            # Decode and process image
-            decoded = base64.b64decode(image_data)
-            np_arr = np.frombuffer(decoded, np.uint8)
-            img = cv2.imdecode(np_arr, cv2.IMREAD_COLOR)
-            
-            # Get face encoding
-            encoding = get_face_encoding(img)
-            
-            if encoding is None:
-                return JsonResponse({
-                    'success': False,
-                    'message': 'No face detected! Please capture a clear photo with proper lighting.'
-                })
+            # Get face encoding (only if face recognition is available)
+            encoding = None
+            if FACE_RECOGNITION_AVAILABLE and image_data:
+                # Decode and process image
+                decoded = base64.b64decode(image_data)
+                np_arr = np.frombuffer(decoded, np.uint8)
+                img = cv2.imdecode(np_arr, cv2.IMREAD_COLOR)
+                
+                encoding = get_face_encoding(img)
+                
+                if encoding is None:
+                    return JsonResponse({
+                        'success': False,
+                        'message': 'No face detected! Please capture a clear photo with proper lighting.'
+                    })
             
             # Create student
             student = Student.objects.create(
@@ -630,8 +678,9 @@ def save_student(request):
                     'message': f'Error creating user account: {str(user_error)}'
                 })
             
-            # Save face encoding
-            student.set_encoding(encoding)
+            # Save face encoding (if available)
+            if encoding is not None:
+                student.set_encoding(encoding)
             student.save()
             
             return JsonResponse({
@@ -662,9 +711,39 @@ def student_detail(request, pk):
 
 @admin_required
 def student_delete(request, pk):
-    """Delete (deactivate) student - Admin only"""
+    """Permanently delete student and all related data - Admin/Faculty only"""
     student = get_object_or_404(Student, pk=pk)
-    student.is_active = False
-    student.save()
-    messages.success(request, f'Student {student.name} has been deactivated.')
+    student_name = student.name
+    roll_number = student.roll_number
+    
+    try:
+        # Delete photo file if exists
+        if student.photo:
+            try:
+                if student.photo.storage.exists(student.photo.name):
+                    student.photo.delete(save=False)
+                    messages.info(request, f'Photo file for {student_name} has been deleted.')
+            except Exception as photo_error:
+                messages.warning(request, f'Could not delete photo file: {str(photo_error)}')
+        
+        # Delete associated user account if exists
+        user = User.objects.filter(username=roll_number).first()
+        if user:
+            user.delete()
+            messages.info(request, f'User account for {roll_number} has been deleted.')
+        
+        # Count attendance records before deletion
+        attendance_count = student.attendances.count()
+        
+        # Delete student record (this will cascade delete all attendance records)
+        student.delete()
+        
+        messages.success(
+            request, 
+            f'✅ Student {student_name} ({roll_number}) has been permanently deleted. '
+            f'Deleted: User account, {attendance_count} attendance record(s), and all associated data.'
+        )
+    except Exception as e:
+        messages.error(request, f'❌ Error deleting student: {str(e)}')
+    
     return redirect('student_list')

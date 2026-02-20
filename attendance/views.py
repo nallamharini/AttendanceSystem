@@ -11,13 +11,14 @@ from django.contrib.auth.decorators import login_required
 from django.db.models import Count, Q
 from django.views.decorators.csrf import ensure_csrf_cookie, csrf_exempt
 from datetime import time, datetime, timedelta
-from .utils import get_face_encoding, compare_faces
+from .utils import get_face_encoding, compare_faces, FACE_RECOGNITION_AVAILABLE
 from accounts.models import Student
 from accounts.decorators import admin_required, student_required
 from .models import Attendance, Holiday
 
 # Configuration
-LATE_THRESHOLD = time(9, 30)  # 9:30 AM - Late threshold
+ON_TIME_THRESHOLD = time(9, 45)  # 9:45 AM - On time until this time
+LATE_THRESHOLD = time(10, 30)  # 10:30 AM - Late threshold (after this = absent)
 EARLY_EXIT_THRESHOLD = time(16, 0)  # 4:00 PM - Early exit threshold
 
 @student_required
@@ -34,7 +35,8 @@ def mark_attendance_view(request):
     context = {
         'is_holiday': is_holiday,
         'holiday_info': holiday_info,
-        'today': today
+        'today': today,
+        'face_recognition_available': FACE_RECOGNITION_AVAILABLE
     }
     
     return render(request, 'attendance/mark_attendance.html', context)
@@ -44,6 +46,13 @@ def mark_attendance(request):
     """API endpoint for marking attendance via face recognition"""
     if request.method == "POST":
         try:
+            # Check if face recognition is available
+            if not FACE_RECOGNITION_AVAILABLE:
+                return JsonResponse({
+                    "success": False,
+                    "message": "Face recognition service is unavailable. Please contact the administrator."
+                })
+            
             # Check if today is a holiday
             today = timezone.now().date()
             if Holiday.is_holiday(today):
@@ -93,20 +102,40 @@ def mark_attendance(request):
                 
                 if created or record.entry_time is None:
                     # Mark entry
+                    # Check if time is after 10:30 AM - mark as absent
+                    if now_time > LATE_THRESHOLD:
+                        record.delete()  # Don't save the record
+                        return JsonResponse({
+                            "success": False,
+                            "message": f"❌ Sorry {matched_student.name}, you are marked ABSENT! Entry after 10:30 AM is not allowed.",
+                            "is_absent": True
+                        })
+                    
                     record.entry_time = now_time
-                    record.is_late = now_time > LATE_THRESHOLD
+                    # Late if between 9:46 AM and 10:30 AM
+                    record.is_late = now_time > ON_TIME_THRESHOLD
                     record.status = 'ENTRY'
-                    message = f"✓ Entry Marked for {matched_student.name}"
+                    
                     if record.is_late:
-                        message += " (Late Arrival)"
+                        message = f"⚠️ Entry Marked for {matched_student.name} (Late Arrival - {now_time.strftime('%I:%M %p')})"
+                    else:
+                        message = f"✅ Entry Marked for {matched_student.name} (On Time - {now_time.strftime('%I:%M %p')})"
                 else:
                     # Mark exit
+                    if record.exit_time is not None:
+                        return JsonResponse({
+                            "success": False,
+                            "message": f"Already marked exit at {record.exit_time.strftime('%I:%M %p')} today!"
+                        })
+                    
                     record.exit_time = now_time
                     record.is_early_exit = now_time < EARLY_EXIT_THRESHOLD
                     record.status = 'EXIT'
-                    message = f"✓ Exit Marked for {matched_student.name}"
+                    
                     if record.is_early_exit:
-                        message += " (Early Exit)"
+                        message = f"⚠️ Exit Marked for {matched_student.name} (Early Exit - {now_time.strftime('%I:%M %p')})"
+                    else:
+                        message = f"✅ Exit Marked for {matched_student.name} ({now_time.strftime('%I:%M %p')})"
                 
                 record.save()
                 
@@ -116,7 +145,9 @@ def mark_attendance(request):
                     "student": matched_student.name,
                     "roll_number": matched_student.roll_number,
                     "time": now_time.strftime("%I:%M %p"),
-                    "status": record.status
+                    "status": record.status,
+                    "is_late": record.is_late if record.status == 'ENTRY' else False,
+                    "is_early_exit": record.is_early_exit if record.status == 'EXIT' else False
                 })
             else:
                 return JsonResponse({

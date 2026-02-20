@@ -63,6 +63,7 @@
                             </div>
                         </div>
 
+                        {% if face_recognition_available %}
                         <div class="card bg-light border-primary mb-3">
                             <div class="card-body text-center">
                                 <h5 class="card-title"><i class="fas fa-camera me-2"></i>Face Capture</h5>
@@ -86,6 +87,12 @@
                                 <img id="photoPreview" class="mt-3 border border-success rounded" style="display: none; max-width: 480px; max-height: 360px;">
                             </div>
                         </div>
+                        {% else %}
+                        <div class="alert alert-warning mb-3">
+                            <i class="fas fa-exclamation-triangle me-2"></i>
+                            <strong>Note:</strong> Face recognition is currently unavailable. You can register without face capture.
+                        </div>
+                        {% endif %}
 
                         <div class="d-grid gap-2">
                             <button type="submit" class="btn btn-success btn-lg">
@@ -129,18 +136,22 @@ let video = document.getElementById('video');
 let canvas = document.getElementById('canvas');
 let photoPreview = document.getElementById('photoPreview');
 let capturedImage = null;
+let faceRecognitionAvailable = {{ face_recognition_available|yesno:"true,false" }};
 
-// Get camera access
-navigator.mediaDevices.getUserMedia({ video: true })
-    .then(stream => {
-        video.srcObject = stream;
-    })
-    .catch(err => {
-        alert('Camera access denied! Please allow camera access to register.');
-        console.error(err);
-    });
+// Get camera access only if face recognition is available
+if (faceRecognitionAvailable && video) {
+    navigator.mediaDevices.getUserMedia({ video: true })
+        .then(stream => {
+            video.srcObject = stream;
+        })
+        .catch(err => {
+            alert('Camera access denied! Please allow camera access to register.');
+            console.error(err);
+        });
+}
 
 function capturePhoto() {
+    if (!video || !canvas) return;
     canvas.width = video.videoWidth;
     canvas.height = video.videoHeight;
     let ctx = canvas.getContext('2d');
@@ -153,6 +164,7 @@ function capturePhoto() {
 }
 
 function retakePhoto() {
+    if (!video || !photoPreview) return;
     video.style.display = 'block';
     photoPreview.style.display = 'none';
     capturedImage = null;
@@ -161,7 +173,7 @@ function retakePhoto() {
 document.getElementById('signupForm').addEventListener('submit', async function(e) {
     e.preventDefault();
     
-    if (!capturedImage) {
+    if (faceRecognitionAvailable && !capturedImage) {
         showAlert('danger', 'Please capture your photo first!');
         return;
     }
